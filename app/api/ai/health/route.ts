@@ -3,7 +3,11 @@ import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import { getAuthenticatedProfile } from '@/lib/supabase/server';
 
-const MODEL = 'gemini-3.8-flash';
+const MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+] as const;
 
 const recent = new Map<string, number[]>();
 
@@ -263,6 +267,43 @@ Use an empty array when recommendations are unnecessary.
 
 Return JSON only. No Markdown code fences.
 `;
+
+function isTransientGeminiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b(429|500|502|503|504)\b|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|GEMINI_TIMEOUT/i.test(message);
+}
+
+async function generateWithFallback(prompt: string) {
+  client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  let lastError: unknown;
+
+  for (const model of MODELS) {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const generation = client.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        maxOutputTokens: 1024,
+      },
+    });
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('GEMINI_TIMEOUT')), 18_000);
+    });
+
+    try {
+      return await Promise.race([generation, timeout]);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientGeminiError(error)) throw error;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Gemini models are temporarily unavailable');
+}
 
 export async function POST(request: Request) {
   try {
@@ -994,51 +1035,8 @@ IMPORTANT RESPONSE REQUIREMENTS:
 Return the exact JSON structure requested in your system instructions.
 `;
 
-    // 9. GENERATE GEMINI RESPONSE
-
-    client ??= new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    });
-
-    const generation = client.models.generateContent({
-      model: MODEL,
-
-      contents: prompt,
-
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-
-        responseMimeType: 'application/json',
-
-        maxOutputTokens: 1024,
-
-        temperature: 0.3,
-      },
-    });
-
-    // Timeout protection.
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const timeout = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(
-        () => reject(new Error('Gemini request timeout')),
-        20_000
-      );
-    });
-
-    let result: Awaited<typeof generation>;
-
-    try {
-      result = await Promise.race([
-        generation,
-        timeout,
-      ]);
-    } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    }
+    // Retry provider overloads against supported stable Flash models.
+    const result = await generateWithFallback(prompt);
 
     // 10. VALIDATE GEMINI JSON RESPONSE
 
