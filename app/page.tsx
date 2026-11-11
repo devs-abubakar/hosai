@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useHosaiStore } from '@/lib/store';
+import React, { useEffect, useState } from 'react';
+import { clearAuthenticatedProfile, setRemoteAuthenticatedProfile, useHosaiStore } from '@/lib/store';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { Navbar } from '@/components/Navbar';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { PatientDashboard } from '@/components/patient/PatientDashboard';
@@ -12,14 +13,38 @@ import { DoctorDiscovery } from '@/components/discovery/DoctorDiscovery';
 import { HospitalDiscovery } from '@/components/discovery/HospitalDiscovery';
 import { AiHealthAssistant } from '@/components/ai/AiHealthAssistant';
 import { RecordUploadModal } from '@/components/patient/RecordUploadModal';
+import { AppointmentManager } from '@/components/appointments/AppointmentManager';
 
 export default function Home() {
   const { currentUser } = useHosaiStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [bookingDoctorId, setBookingDoctorId] = useState<string | undefined>();
+  const [remoteReady, setRemoteReady] = useState(!isSupabaseConfigured);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let active = true;
+    void (async () => {
+      const { data: { user } } = await supabase!.auth.getUser();
+      if (!active) return;
+      if (!user) clearAuthenticatedProfile();
+      else {
+        const { data: profile } = await supabase!.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        if (profile && active) {
+          const { data: patient } = profile.role === 'patient' ? await supabase!.from('patient_profiles').select('*').eq('id', user.id).maybeSingle() : { data: null };
+          const { data: doctor } = profile.role === 'doctor' ? await supabase!.from('doctor_profiles').select('*').eq('id', user.id).maybeSingle() : { data: null };
+          setRemoteAuthenticatedProfile(profile, patient ?? undefined, doctor ?? undefined);
+        } else clearAuthenticatedProfile();
+      }
+      setRemoteReady(true);
+    })();
+    return () => { active = false; };
+  }, []);
 
   // If user is not authenticated, render the dedicated Authentication Page
+  if (!remoteReady) return <div className="min-h-screen bg-slate-50" aria-busy="true" />;
   if (!currentUser) {
     return <AuthPage />;
   }
@@ -36,6 +61,7 @@ export default function Home() {
       if (activeTab === 'hospitals') {
         return <HospitalDiscovery />;
       }
+      if (activeTab === 'appointments') return <AppointmentManager initialDoctorId={bookingDoctorId} />;
       return (
         <PatientDashboard
           onNavigate={(tab) => setActiveTab(tab)}
@@ -47,6 +73,7 @@ export default function Home() {
 
     // 2. Doctor Role Views
     if (currentUser.role === 'doctor') {
+      if (activeTab === 'appointments') return <AppointmentManager initialDoctorId={bookingDoctorId} />;
       if (activeTab === 'hospitals') {
         return <HospitalDiscovery />;
       }
@@ -85,7 +112,7 @@ export default function Home() {
       </main>
 
       {/* Global Contextual Modals */}
-      <AiHealthAssistant isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      <AiHealthAssistant isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} onBookDoctor={(doctorId) => { setBookingDoctorId(doctorId); setActiveTab('appointments'); }} />
       <RecordUploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}

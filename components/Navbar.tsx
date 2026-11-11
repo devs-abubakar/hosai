@@ -1,10 +1,11 @@
 'use client';
 
 import React from 'react';
-import { useHosaiStore } from '@/lib/store';
+import { clearAuthenticatedProfile, useHosaiStore } from '@/lib/store';
 import {
   Activity,
   Bot,
+  CalendarClock,
   Building2,
   FileText,
   LogOut,
@@ -13,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 interface NavbarProps {
   activeTab: string;
@@ -33,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         { id: 'dashboard', label: 'Overview', icon: Activity },
         { id: 'passport', label: 'Medical Profile', icon: FileText },
         { id: 'doctors', label: 'Doctors', icon: Stethoscope },
+        { id: 'appointments', label: 'Appointments', icon: CalendarClock },
         { id: 'hospitals', label: 'Hospitals', icon: Building2 },
       ]
     : currentUser.role === 'doctor'
@@ -40,6 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           { id: 'dashboard', label: 'Patients', icon: Users },
           { id: 'hospitals', label: 'Hospitals', icon: Building2 },
           { id: 'doctors', label: 'Colleagues', icon: Stethoscope },
+          { id: 'appointments', label: 'Appointments', icon: CalendarClock },
         ]
       : [];
 
@@ -60,9 +64,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     .join('')
     .toUpperCase();
 
-  const signOut = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const signOut = async (event: React.MouseEvent<HTMLButtonElement>) => {
     closeMenu(event);
-    logout();
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut();
+      clearAuthenticatedProfile();
+    } else logout();
     toast.info('You have been signed out.');
   };
 

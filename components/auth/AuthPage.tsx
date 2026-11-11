@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useHosaiStore, DEMO_PASSWORD, DEMO_ADMIN_PASSWORD } from '@/lib/store';
+import { useHosaiStore, DEMO_PASSWORD, DEMO_ADMIN_PASSWORD, setRemoteAuthenticatedProfile } from '@/lib/store';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { UserRole, BloodGroup } from '@/types/database';
 import {
   Activity,
@@ -25,8 +26,8 @@ export const AuthPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Login form inputs
-  const [loginIdentifier, setLoginIdentifier] = useState('sarah@hosai.health');
-  const [loginPassword, setLoginPassword] = useState(DEMO_PASSWORD);
+  const [loginIdentifier, setLoginIdentifier] = useState(isSupabaseConfigured ? '' : 'sarah@hosai.health');
+  const [loginPassword, setLoginPassword] = useState(isSupabaseConfigured ? '' : DEMO_PASSWORD);
 
   // Registration inputs
   const [regRole, setRegRole] = useState<'patient' | 'doctor'>('patient');
@@ -56,21 +57,39 @@ export const AuthPage: React.FC = () => {
     setIsRegistering(false);
 
     if (role === 'patient') {
-      setLoginIdentifier('sarah@hosai.health');
-      setLoginPassword(DEMO_PASSWORD);
+      setLoginIdentifier(isSupabaseConfigured ? '' : 'sarah@hosai.health');
+      setLoginPassword(isSupabaseConfigured ? '' : DEMO_PASSWORD);
     } else if (role === 'doctor') {
-      setLoginIdentifier('marcus.vance@hosai.health');
-      setLoginPassword(DEMO_PASSWORD);
+      setLoginIdentifier(isSupabaseConfigured ? '' : 'marcus.vance@hosai.health');
+      setLoginPassword(isSupabaseConfigured ? '' : DEMO_PASSWORD);
     } else {
-      setLoginIdentifier('admin@hosai.health');
-      setLoginPassword(DEMO_ADMIN_PASSWORD);
+      setLoginIdentifier(isSupabaseConfigured ? '' : 'admin@hosai.health');
+      setLoginPassword(isSupabaseConfigured ? '' : DEMO_ADMIN_PASSWORD);
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: loginIdentifier.trim(), password: loginPassword });
+      if (error || !data.user) {
+        const message = error?.message || 'Authentication failed.';
+        setErrorMessage(message); toast.error(message); return;
+      }
+      const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+      if (profileError || !profile || profile.role !== activePortal) {
+        await supabase.auth.signOut();
+        const message = profileError?.message || 'Choose the portal that matches your account.';
+        setErrorMessage(message); toast.error(message); return;
+      }
+      const { data: patient } = profile.role === 'patient' ? await supabase.from('patient_profiles').select('*').eq('id', profile.id).maybeSingle() : { data: null };
+      const { data: doctor } = profile.role === 'doctor' ? await supabase.from('doctor_profiles').select('*').eq('id', profile.id).maybeSingle() : { data: null };
+      setRemoteAuthenticatedProfile(profile, patient ?? undefined, doctor ?? undefined);
+      toast.success('Signed in securely');
+      return;
+    }
     const res = login(loginIdentifier, loginPassword, activePortal);
     if (!res.success) {
       setErrorMessage(res.error || 'Authentication failed.');
@@ -82,7 +101,7 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -91,6 +110,32 @@ export const AuthPage: React.FC = () => {
       return;
     }
 
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email: regEmail.trim(), password: regPassword,
+        options: { data: {
+          role: regRole, username: regUsername.trim().toLowerCase(), full_name: regFullName.trim(), phone: regPhone,
+          location: regLocation, date_of_birth: regDob, blood_group: regBloodGroup,
+          gender: 'female', emergency_contact_name: regEmergencyName,
+          emergency_contact_phone: regEmergencyPhone, emergency_contact_relation: 'Family',
+          specialization: regSpecialization, qualifications: ['MBBS', 'Board Certified'],
+          experience_years: regExperience, registration_number: regLicense,
+          consultation_fee: regFee, bio: `Clinical practitioner specializing in ${regSpecialization}.`,
+        } },
+      });
+      if (error) { setErrorMessage(error.message); toast.error(error.message); return; }
+      if (data.user && data.session) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+        const { data: patient } = regRole === 'patient' ? await supabase.from('patient_profiles').select('*').eq('id', data.user.id).maybeSingle() : { data: null };
+        const { data: doctor } = regRole === 'doctor' ? await supabase.from('doctor_profiles').select('*').eq('id', data.user.id).maybeSingle() : { data: null };
+        if (profile) setRemoteAuthenticatedProfile(profile, patient ?? undefined, doctor ?? undefined);
+      }
+      toast.success(data.session ? 'Registration complete' : 'Check your email to confirm your account', {
+        description: regRole === 'doctor' ? 'Doctor accounts remain pending until verified by an administrator.' : undefined,
+      });
+      setIsRegistering(false);
+      return;
+    }
     const res = registerUser(
       {
         email: regEmail,
@@ -210,7 +255,7 @@ export const AuthPage: React.FC = () => {
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  {activePortal === 'patient'
+                  {isSupabaseConfigured ? 'Account email' : activePortal === 'patient'
                     ? 'Patient Email or @username'
                     : activePortal === 'doctor'
                     ? 'Physician Email or @username'
@@ -219,12 +264,12 @@ export const AuthPage: React.FC = () => {
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    type={isSupabaseConfigured ? 'email' : 'text'}
                     required
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                    placeholder="Enter email or username..."
+                    placeholder={isSupabaseConfigured ? 'Enter your account email' : 'Enter email or username...'}
                   />
                 </div>
               </div>

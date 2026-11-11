@@ -1,15 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+'use client';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  !supabaseUrl.includes('your-project') &&
-  supabaseUrl.startsWith('http')
-);
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+export const isSupabaseConfigured = Boolean(url.startsWith('https://') && key && !url.includes('your-project'));
 
+let client: SupabaseClient | null = null;
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? (() => {
+      client ??= createBrowserClient(url, key);
+      return client;
+    })()
   : null;

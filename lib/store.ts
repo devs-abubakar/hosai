@@ -541,10 +541,11 @@ function getStoredState(): HosaiState {
 }
 
 let globalState: HosaiState | null = null;
+let remoteSessionUserId: string | null = null;
 const listeners = new Set<() => void>();
 
 function notify() {
-  if (typeof window !== 'undefined' && globalState) {
+  if (typeof window !== 'undefined' && globalState && !remoteSessionUserId) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
     } catch (e) {
@@ -552,6 +553,33 @@ function notify() {
     }
   }
   listeners.forEach((l) => l());
+}
+
+export function setRemoteAuthenticatedProfile(profile: UserProfile, patient?: PatientProfile, doctor?: DoctorProfile) {
+  if (!globalState) globalState = getStoredState();
+  if (remoteSessionUserId && remoteSessionUserId !== profile.id) removeRemoteProfile(remoteSessionUserId);
+  const safeProfile = { ...profile, password: undefined };
+  globalState.profiles = [safeProfile, ...globalState.profiles.filter((item) => item.id !== profile.id)];
+  if (patient) globalState.patientProfiles = [patient, ...globalState.patientProfiles.filter((item) => item.id !== patient.id)];
+  if (doctor) globalState.doctorProfiles = [doctor, ...globalState.doctorProfiles.filter((item) => item.id !== doctor.id)];
+  globalState.authenticatedUserId = profile.id;
+  remoteSessionUserId = profile.id;
+  notify();
+}
+
+function removeRemoteProfile(id: string) {
+  if (!globalState) return;
+  globalState.profiles = globalState.profiles.filter((profile) => profile.id !== id);
+  globalState.patientProfiles = globalState.patientProfiles.filter((profile) => profile.id !== id);
+  globalState.doctorProfiles = globalState.doctorProfiles.filter((profile) => profile.id !== id);
+}
+
+export function clearAuthenticatedProfile() {
+  if (!globalState) globalState = getStoredState();
+  if (remoteSessionUserId) removeRemoteProfile(remoteSessionUserId);
+  remoteSessionUserId = null;
+  globalState.authenticatedUserId = null;
+  notify();
 }
 
 export function useHosaiStore() {
