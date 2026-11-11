@@ -74,7 +74,13 @@ export default function Home() {
       />
 
       {/* Main Role-Specific Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-md bg-white px-4 py-3 text-sm font-semibold text-slate-900 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:ring-2 focus:ring-sky-600"
+      >
+        Skip to main content
+      </a>
+      <main id="main-content" className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
         {renderContent()}
       </main>
 

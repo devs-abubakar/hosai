@@ -430,7 +430,7 @@ export const AuthPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 uppercase">
                     Full Name *
@@ -462,7 +462,7 @@ export const AuthPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 uppercase">
                     Email *
@@ -493,7 +493,7 @@ export const AuthPage: React.FC = () => {
               {/* Conditional Patient Fields */}
               {regRole === 'patient' && (
                 <div className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-200">
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 uppercase">
                         Date of Birth
@@ -526,7 +526,7 @@ export const AuthPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 uppercase">
                         Emergency Contact
@@ -556,7 +556,7 @@ export const AuthPage: React.FC = () => {
               {/* Conditional Doctor Fields */}
               {regRole === 'doctor' && (
                 <div className="p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-200">
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 uppercase">
                         Specialization
@@ -581,7 +581,7 @@ export const AuthPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 uppercase">
                         Experience (Years)

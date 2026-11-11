@@ -20,6 +20,42 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+summary,
+select {
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  button,
+  summary {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Subtle clean scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

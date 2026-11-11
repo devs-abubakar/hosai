@@ -6,8 +6,6 @@ import {
   Users,
   Stethoscope,
   Building2,
-  ShieldCheck,
-  Clock,
   ChevronRight,
   AlertTriangle,
   HeartPulse,
@@ -70,87 +68,31 @@ export const DoctorDashboard: React.FC = () => {
       return { ...dh, hospital };
     });
 
-  const totalConsultations = state.consultations.filter(
-    (c) => c.doctor_id === currentUser.id
-  ).length;
-
   return (
     <div className="space-y-6">
-      {/* Doctor Identity Header */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <img
-              src={
-                currentUser.avatar_url ||
-                'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150'
-              }
-              alt={currentUser.full_name}
-              className="w-16 h-16 rounded-2xl object-cover ring-1 ring-slate-200 shadow-xs"
-            />
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-slate-900">
-                  {currentUser.full_name}
-                </h1>
-                <span className="font-mono text-xs text-slate-500 font-medium">
-                  @{currentUser.username}
-                </span>
-                {currentDoctorProfile?.verification_status === 'verified' ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Verified Practitioner
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    <Clock className="w-3.5 h-3.5" /> Verification Pending
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">
-                {currentDoctorProfile?.specialization} • Medical Council License:{' '}
-                <span className="font-mono text-slate-700">{currentDoctorProfile?.registration_number}</span> •{' '}
-                {currentDoctorProfile?.experience_years} Years Experience
-              </p>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 pt-0.5">
-                {currentDoctorProfile?.qualifications.map((q, idx) => (
-                  <span key={idx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
-                    {q}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-              <div className="text-xl font-bold text-slate-900">{authorizedPatients.length}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Authorized Patients
-              </div>
-            </div>
-            <div className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-              <div className="text-xl font-bold text-slate-900">{totalConsultations}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Consultations Logged
-              </div>
-            </div>
-          </div>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-950">Patients</h1>
+          <p className="mt-1 text-sm text-slate-600">Search for a patient or open a chart you are authorized to view.</p>
         </div>
+        {currentDoctorProfile?.verification_status !== 'verified' && (
+          <p role="status" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950 sm:mt-0">
+            Doctor verification is pending. Patient record access is unavailable until approval.
+          </p>
+        )}
       </div>
 
       {/* FEATURE: Doctor Patient Search by Username & Access Request */}
       <PatientUsernameSearch onOpenPatientChart={(patientId) => setSelectedPatientId(patientId)} />
 
       {/* Main Section: Authorized Patient Roster */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Users className="w-4 h-4 text-indigo-600" /> Authorized Patient Roster
             </h2>
-            <p className="text-xs text-slate-500">
-              Patients who have granted you active consent to review their lifelong health passport.
-            </p>
+            <p className="text-sm text-slate-600">Only patients with active consent appear here.</p>
           </div>
 
           {/* Search box within roster */}
@@ -158,7 +100,8 @@ export const DoctorDashboard: React.FC = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Filter roster by name or @username..."
+              aria-label="Filter authorized patients"
+              placeholder="Filter patients by name or username…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -194,7 +137,7 @@ export const DoctorDashboard: React.FC = () => {
                       className="w-12 h-12 rounded-xl object-cover ring-1 ring-slate-200 shadow-xs shrink-0"
                     />
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <h3 className="text-sm font-bold text-slate-900">{user.full_name}</h3>
                         <span className="font-mono text-xs text-slate-500">@{user.username}</span>
                         <span className="px-2 py-0.2 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">

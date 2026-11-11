@@ -158,7 +158,7 @@ export const PatientPassport: React.FC<PatientPassportProps> = ({
               className="w-16 h-16 rounded-2xl object-cover ring-1 ring-slate-200 shadow-xs"
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h1 className="text-xl font-bold text-slate-900">{patientUser?.full_name}</h1>
                 <span className="font-mono text-xs text-slate-500 font-medium">
                   @{patientUser?.username}
@@ -831,8 +831,8 @@ export const PatientPassport: React.FC<PatientPassportProps> = ({
 
       {/* Record Preview Modal Dialog */}
       {selectedRecordPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="modal-enter relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-900/50 p-3 backdrop-blur-xs sm:items-center sm:p-4">
+          <div className="modal-enter relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">Document Inspection</h3>
               <button

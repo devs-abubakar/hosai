@@ -52,8 +52,8 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({
   const consultations = state.consultations.filter((c) => c.patient_id === patientId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="modal-enter relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-900/60 p-3 backdrop-blur-xs sm:items-center sm:p-4">
+      <div className="modal-enter relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl sm:max-h-[calc(100dvh-2rem)]">
         {/* Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({
               className="w-11 h-11 rounded-xl object-cover ring-2 ring-white shadow-xs"
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h3 className="text-base font-bold text-slate-900">{patient?.full_name}</h3>
                 <span className="font-mono text-xs text-slate-500 font-medium">@{patient?.username}</span>
                 <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">

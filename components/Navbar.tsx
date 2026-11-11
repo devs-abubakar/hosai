@@ -4,14 +4,13 @@ import React from 'react';
 import { useHosaiStore } from '@/lib/store';
 import {
   Activity,
-  ShieldCheck,
-  Stethoscope,
-  Building2,
   Bot,
+  Building2,
   FileText,
-  Users,
   LogOut,
-  User,
+  Menu,
+  Stethoscope,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,154 +25,152 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenAiAssistant,
 }) => {
-  const { currentUser, logout } = useHosaiStore();
-
+  const { currentUser, currentDoctorProfile, logout } = useHosaiStore();
   if (!currentUser) return null;
 
-  const handleSignOut = () => {
+  const links = currentUser.role === 'patient'
+    ? [
+        { id: 'dashboard', label: 'Overview', icon: Activity },
+        { id: 'passport', label: 'Medical Profile', icon: FileText },
+        { id: 'doctors', label: 'Doctors', icon: Stethoscope },
+        { id: 'hospitals', label: 'Hospitals', icon: Building2 },
+      ]
+    : currentUser.role === 'doctor'
+      ? [
+          { id: 'dashboard', label: 'Patients', icon: Users },
+          { id: 'hospitals', label: 'Hospitals', icon: Building2 },
+          { id: 'doctors', label: 'Colleagues', icon: Stethoscope },
+        ]
+      : [];
+
+  const closeMenu = (event: React.MouseEvent<HTMLElement>) => {
+    event.currentTarget.closest('details')?.removeAttribute('open');
+  };
+
+  const navigate = (event: React.MouseEvent<HTMLButtonElement>, tab: string) => {
+    setActiveTab(tab);
+    closeMenu(event);
+  };
+
+  const initials = currentUser.full_name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join('')
+    .toUpperCase();
+
+  const signOut = (event: React.MouseEvent<HTMLButtonElement>) => {
+    closeMenu(event);
     logout();
     toast.info('You have been signed out.');
   };
 
-  const getNavLinks = () => {
-    if (currentUser.role === 'patient') {
-      return [
-        { id: 'dashboard', label: 'My Health Hub', icon: Activity },
-        { id: 'passport', label: 'Medical Passport', icon: FileText },
-        { id: 'doctors', label: 'Find Doctors', icon: Stethoscope },
-        { id: 'hospitals', label: 'Hospitals', icon: Building2 },
-      ];
-    }
-    if (currentUser.role === 'doctor') {
-      return [
-        { id: 'dashboard', label: 'Clinical Dashboard', icon: Activity },
-        { id: 'patients', label: 'Authorized Patients', icon: Users },
-        { id: 'hospitals', label: 'Hospital Network', icon: Building2 },
-        { id: 'doctors', label: 'Colleague Directory', icon: Stethoscope },
-      ];
-    }
-    // Admin
-    return [
-      { id: 'dashboard', label: 'Overview & Stats', icon: Activity },
-      { id: 'verifications', label: 'Doctor Verification', icon: ShieldCheck },
-      { id: 'hospitals', label: 'Hospital Directory', icon: Building2 },
-      { id: 'users', label: 'User Management', icon: Users },
-    ];
-  };
-
-  const navLinks = getNavLinks();
+  const navigation = (
+    <nav aria-label="Main navigation" className="flex flex-col gap-1 lg:flex-row lg:items-center">
+      {links.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={(event) => navigate(event, id)}
+          aria-current={activeTab === id ? 'page' : undefined}
+          className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 lg:min-h-10 lg:text-[13px] ${
+            activeTab === id
+              ? 'bg-slate-100 text-slate-950'
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+          }`}
+        >
+          <Icon aria-hidden="true" className="size-4 shrink-0 text-slate-500" />
+          {label}
+        </button>
+      ))}
+      {currentUser.role === 'admin' && (
+        <span className="px-3 py-2 text-sm font-medium text-slate-600 lg:hidden">Platform management</span>
+      )}
+    </nav>
+  );
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-8">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className="flex items-center gap-2.5 text-left group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
-                <Activity className="w-5 h-5 text-sky-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-lg font-bold tracking-tight text-slate-900">
-                    HOS<span className="text-sky-600">AI</span>
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                    Health OS
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">Unified Medical Records</p>
-              </div>
-            </button>
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white">
+      <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          onClick={(event) => navigate(event, 'dashboard')}
+          aria-label="HOSAI home"
+          className="flex shrink-0 items-center gap-2.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2"
+        >
+          <span className="flex size-9 items-center justify-center rounded-xl bg-slate-900 text-sky-400">
+            <Activity aria-hidden="true" className="size-5" />
+          </span>
+          <span className="text-lg font-bold tracking-tight text-slate-950">
+            HOS<span className="text-sky-700">AI</span>
+          </span>
+        </button>
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => {
-                const Icon = link.icon;
-                const isActive = activeTab === link.id;
-                return (
-                  <button
-                    key={link.id}
-                    onClick={() => setActiveTab(link.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-slate-100 text-slate-900 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
-                    {link.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+        <div className="hidden min-w-0 flex-1 lg:block">{navigation}</div>
 
-          {/* Right actions: AI Assistant & User Sign Out */}
-          <div className="flex items-center gap-3">
-            {/* AI Assistant Quick Trigger */}
+        <div className="flex shrink-0 items-center gap-2">
+          {currentUser.role === 'patient' && (
             <button
+              type="button"
               onClick={onOpenAiAssistant}
-              className="btn-press flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors"
+              aria-label="Open AI health assistant"
+              className="inline-flex size-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 sm:w-auto sm:gap-2 sm:px-3"
             >
-              <Bot className="w-3.5 h-3.5 text-sky-600" />
-              <span className="hidden sm:inline">AI Health Assistant</span>
+              <Bot aria-hidden="true" className="size-4 text-sky-700" />
+              <span className="hidden text-sm font-medium sm:inline">AI assistant</span>
             </button>
+          )}
 
-            {/* Active User info badge */}
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <img
-                src={
-                  currentUser.avatar_url ||
-                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'
-                }
-                alt={currentUser.full_name}
-                className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200"
-              />
-              <div className="hidden sm:block text-left text-xs">
-                <div className="font-semibold text-slate-900 leading-tight">
-                  {currentUser.full_name}
-                </div>
-                <div className="text-slate-400 text-[10px] font-mono">
-                  @{currentUser.username} • <span className="capitalize">{currentUser.role}</span>
-                </div>
+          <details name="header-menu" className="group relative">
+            <summary
+              aria-label="Open profile menu"
+              className="flex size-10 cursor-pointer list-none items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"
+            >
+              {initials || 'U'}
+            </summary>
+            <div className="absolute right-0 top-12 z-50 w-[min(19rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              <div className="border-b border-slate-100 px-3 py-3">
+                <p className="truncate text-sm font-semibold text-slate-900">{currentUser.full_name}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">@{currentUser.username}</p>
+                <p className="mt-1 break-all text-xs text-slate-500">{currentUser.email}</p>
+                {currentUser.role === 'doctor' && currentDoctorProfile && (
+                  <p className="mt-2 text-xs text-slate-600">
+                    {currentDoctorProfile.specialization} · <span className="capitalize">{currentDoctorProfile.verification_status}</span>
+                  </p>
+                )}
+                <p className="mt-2 text-[11px] font-medium capitalize text-slate-500">{currentUser.role} account</p>
               </div>
-
-              {/* Secure Sign Out Button */}
+              {currentUser.role === 'patient' && (
+                <button
+                  type="button"
+                  onClick={(event) => navigate(event, 'passport')}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                >
+                  <FileText aria-hidden="true" className="size-4 text-slate-500" />
+                  My Medical Profile
+                </button>
+              )}
               <button
-                onClick={handleSignOut}
-                title="Sign out of your session"
-                className="btn-press p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-1"
+                type="button"
+                onClick={signOut}
+                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-rose-700 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut aria-hidden="true" className="size-4" />
+                Sign out
               </button>
             </div>
-          </div>
-        </div>
+          </details>
 
-        {/* Mobile Navigation bar */}
-        <div className="flex md:hidden overflow-x-auto py-2 gap-1 border-t border-slate-100">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = activeTab === link.id;
-            return (
-              <button
-                key={link.id}
-                onClick={() => setActiveTab(link.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap ${
-                  isActive
-                    ? 'bg-slate-100 text-slate-900 font-bold'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
-                {link.label}
-              </button>
-            );
-          })}
+          <details name="header-menu" className="relative lg:hidden">
+            <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+              <Menu aria-hidden="true" className="size-5" />
+              <span className="sr-only">Open navigation menu</span>
+            </summary>
+            <div className="absolute right-0 top-12 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+              {navigation}
+            </div>
+          </details>
         </div>
       </div>
     </header>

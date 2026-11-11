@@ -6,8 +6,6 @@ import {
   ShieldCheck,
   Users,
   Building2,
-  Stethoscope,
-  Activity,
   CheckCircle2,
   XCircle,
   Plus,
@@ -32,98 +30,31 @@ export const AdminDashboard: React.FC = () => {
 
   if (!currentUser) return null;
 
-  const totalPatients = state.profiles.filter((p) => p.role === 'patient').length;
-  const totalDoctors = state.doctorProfiles.length;
   const pendingDoctors = state.doctorProfiles.filter((d) => d.verification_status === 'pending');
-  const verifiedDoctors = state.doctorProfiles.filter((d) => d.verification_status === 'verified');
   const totalHospitals = state.hospitals.length;
-  const totalConsultations = state.consultations.length;
 
   return (
     <div className="space-y-6">
-      {/* Admin Header */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-              Platform Regulatory &amp; Admin Console
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-              Hospital Operations &amp; Verification
-            </h1>
-            <p className="text-slate-500 text-xs">
-              Administrator: <span className="font-semibold text-slate-800">{currentUser.full_name}</span> (@{currentUser.username}) • Auditing
-              practitioner licensing, hospital registrations, and healthcare compliance.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-              <div className="text-xl font-bold text-amber-700">{pendingDoctors.length}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Pending Licensure
-              </div>
-            </div>
-            <div className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-              <div className="text-xl font-bold text-slate-900">{totalHospitals}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Verified Facilities
-              </div>
-            </div>
-          </div>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-950">Administration</h1>
+          <p className="mt-1 text-sm text-slate-600">Review doctor credentials and manage healthcare facilities.</p>
         </div>
-      </div>
-
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Patients</span>
-            <Users className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{totalPatients}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Active encrypted medical passports</div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Registered Doctors</span>
-            <Stethoscope className="w-4 h-4 text-indigo-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{totalDoctors}</div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            {verifiedDoctors.length} verified, {pendingDoctors.length} pending review
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Hospitals</span>
-            <Building2 className="w-4 h-4 text-sky-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{totalHospitals}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Verified partner clinics &amp; trauma centers</div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider">Consultations</span>
-            <Activity className="w-4 h-4 text-purple-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{totalConsultations}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Official clinical notes logged</div>
-        </div>
+        {pendingDoctors.length > 0 && (
+          <p role="status" className="text-sm font-medium text-amber-900">
+            {pendingDoctors.length} doctor{pendingDoctors.length === 1 ? '' : 's'} awaiting review
+          </p>
+        )}
       </div>
 
       {/* Main Admin Tabs */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {/* Navigation Tabs */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 bg-slate-50">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 border-b border-slate-100 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('verifications')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+              className={`flex min-w-max items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'verifications'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -140,7 +71,7 @@ export const AdminDashboard: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('hospitals')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+              className={`flex min-w-max items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'hospitals'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -152,7 +83,7 @@ export const AdminDashboard: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+              className={`flex min-w-max items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                 activeTab === 'users'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -186,8 +117,8 @@ export const AdminDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[760px] border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Doctor</th>
@@ -349,8 +280,8 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === 'users' && (
           <div className="p-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900">System User Accounts</h3>
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[560px] border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">User</th>

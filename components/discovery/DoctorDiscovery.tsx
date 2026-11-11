@@ -95,7 +95,8 @@ export const DoctorDiscovery: React.FC = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by doctor name, specialty, or city..."
+              aria-label="Search doctors"
+              placeholder="Search doctors by name, specialty, or city…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
@@ -141,7 +142,7 @@ export const DoctorDiscovery: React.FC = () => {
                     className="w-14 h-14 rounded-2xl object-cover ring-2 ring-slate-100 shadow-xs shrink-0"
                   />
                   <div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                       <h3 className="font-bold text-slate-900 text-sm">{user.full_name}</h3>
                       <span className="font-mono text-[11px] text-slate-400">@{user.username}</span>
                       {doc.verification_status === 'verified' && (
