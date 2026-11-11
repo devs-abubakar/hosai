@@ -8,7 +8,7 @@ type Message = { role: 'user' | 'assistant'; text: string };
 type Recommendation = { id: string; specialization: string; qualifications: string[]; experience_years: number; profile: { full_name: string; location: string | null }; slots: { id: string; starts_at: string }[] };
 
 export function AiHealthAssistant({ isOpen, onClose, onBookDoctor }: { isOpen: boolean; onClose: () => void; onBookDoctor?: (doctorId: string) => void }) {
-  const { currentUser } = useHosaiStore();
+  const { currentUser, state, isDemoMode } = useHosaiStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [input, setInput] = useState('');
@@ -22,11 +22,40 @@ export function AiHealthAssistant({ isOpen, onClose, onBookDoctor }: { isOpen: b
     const text = value.trim();
     if (!text || busy) return;
     const previous = messages;
+    const summary = /summari[sz]|history|condition|symptom|pain/i.test(text);
+    const reportQuery = /report|test result|lab|scan/i.test(text);
+    const medicationQuery = /medication|medicine|prescription|dose|drug|treatment plan/i.test(text);
+    const appointmentQuery = /appointment/i.test(text);
+    const doctorQuery = /doctor|specialist|specialty|appointment|clinic|hospital/i.test(text);
     setMessages((items) => [...items, { role: 'user', text }]); setInput(''); setBusy(true); setError(''); setRecommendations([]);
     try {
       const response = await fetch('/api/ai/health', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: previous.slice(-6) }),
+        body: JSON.stringify({
+          message: text,
+          history: previous.slice(-6),
+          demoMode: isDemoMode,
+          ...(isDemoMode ? {
+            demoContext: {
+              conditions: summary ? state.medicalConditions.filter((item) => item.patient_id === currentUser.id).slice(0, 12).map(({ disease_name, description, status, diagnosed_date }) => ({ disease_name, description, status, diagnosed_date })) : [],
+              allergies: state.allergies.filter((item) => item.patient_id === currentUser.id).map(({ allergen, reaction, severity, notes }) => ({ allergen, reaction, severity, notes })),
+              medications: state.medications.filter((item) => item.patient_id === currentUser.id && item.status === 'active').slice(0, medicationQuery || summary ? 15 : 5).map(({ medication_name, dosage, frequency, duration, status }) => ({ medication_name, dosage, frequency, duration, status })),
+              reports: reportQuery ? state.medicalRecords.filter((item) => item.patient_id === currentUser.id).slice(0, 5).map(({ title, record_type, record_date, notes }) => ({ title, record_type, record_date, notes })) : [],
+              consultations: summary || /consultation|visit/i.test(text) ? state.consultations.filter((item) => item.patient_id === currentUser.id).slice(0, 5).map(({ consultation_date, symptoms, observations, diagnosis, clinical_notes, treatment_plan }) => ({ consultation_date, symptoms, observations, diagnosis, clinical_notes, treatment_plan })) : [],
+              prescriptions: medicationQuery ? state.prescriptions.filter((item) => item.patient_id === currentUser.id).slice(0, 5).map(({ prescription_date, general_instructions, items }) => ({ prescription_date, general_instructions, items })) : [],
+              appointments: appointmentQuery ? state.appointments.filter((item) => item.patient_id === currentUser.id).slice(0, 10) : [],
+            },
+            demoDoctors: doctorQuery ? state.doctorProfiles.filter((doctor) => doctor.verification_status === 'verified').map((doctor) => ({
+              id: doctor.id, specialization: doctor.specialization, qualifications: doctor.qualifications,
+              experience_years: doctor.experience_years,
+              profile: {
+                full_name: state.profiles.find((profile) => profile.id === doctor.id)?.full_name ?? 'Doctor',
+                location: state.profiles.find((profile) => profile.id === doctor.id)?.location ?? null,
+              },
+              slots: state.doctorAvailability.filter((slot) => slot.doctor_id === doctor.id && slot.status === 'available' && new Date(slot.starts_at).getTime() > Date.now()).slice(0, 3).map(({ id, starts_at }) => ({ id, starts_at })),
+            })).filter((doctor) => doctor.slots.length > 0) : [],
+          } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'The assistant could not answer right now.');
@@ -40,7 +69,7 @@ export function AiHealthAssistant({ isOpen, onClose, onBookDoctor }: { isOpen: b
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-4">
     <section role="dialog" aria-modal="true" aria-labelledby="assistant-title" className="flex h-[min(720px,100dvh)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:h-[min(720px,calc(100dvh-2rem))] sm:rounded-2xl">
       <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-xl bg-sky-50 text-sky-800"><Bot size={19}/></span><div><h2 id="assistant-title" className="font-semibold text-slate-900">HOSAI health assistant</h2><p className="text-xs text-slate-500">Your records are retrieved securely for each question</p></div></div>
+        <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-xl bg-sky-50 text-sky-800"><Bot size={19}/></span><div><h2 id="assistant-title" className="font-semibold text-slate-900">HOSAI health assistant</h2><p className="text-xs text-slate-500">{isDemoMode ? 'Demo mode · sample records only' : 'Your records are retrieved securely for each question'}</p></div></div>
         <button onClick={onClose} aria-label="Close assistant" className="flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"><X size={18}/></button>
       </header>
       <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-xs leading-relaxed text-amber-950 sm:px-5"><AlertTriangle size={15} className="mt-0.5 shrink-0"/><p>For information and care preparation only. This assistant does not diagnose or prescribe. For urgent symptoms, contact emergency services.</p></div>

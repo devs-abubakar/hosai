@@ -3,10 +3,11 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { CalendarClock, Check, Clock3, LoaderCircle, Plus, X } from 'lucide-react';
 import { useHosaiStore } from '@/lib/store';
+import type { AppointmentStatus } from '@/types/database';
 
 type Appointment = {
   id: string; patient_id: string; doctor_id: string; slot_id: string; starts_at: string; ends_at: string;
-  appointment_type: 'in_person' | 'online'; reason: string | null; status: string;
+  appointment_type: 'in_person' | 'online'; reason: string | null; status: AppointmentStatus;
   patient_name: string; patient_username: string; doctor_name: string; doctor_username: string; specialization: string;
 };
 type Doctor = { id: string; specialization: string; qualifications: string[]; experience_years: number; bio: string | null; consultation_fee: number; profiles: { full_name: string; username: string; location: string | null } };
@@ -16,7 +17,7 @@ const prettyDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateS
 const labels: Record<string, string> = { pending: 'Pending', confirmed: 'Confirmed', rejected: 'Rejected', cancelled: 'Cancelled', completed: 'Completed' };
 
 export function AppointmentManager({ initialDoctorId }: { initialDoctorId?: string }) {
-  const { currentUser } = useHosaiStore();
+  const { currentUser, currentDoctorProfile, state, isDemoMode, addDemoAvailability, removeDemoAvailability, bookDemoAppointment, updateDemoAppointment } = useHosaiStore();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -32,6 +33,32 @@ export function AppointmentManager({ initialDoctorId }: { initialDoctorId?: stri
   const [error, setError] = useState('');
 
   const reload = useCallback(async () => {
+    if (isDemoMode && currentUser) {
+      const currentAppointments = state.appointments.filter((item) => currentUser.role === 'patient'
+        ? item.patient_id === currentUser.id : item.doctor_id === currentUser.id);
+      setAppointments(currentAppointments.map((item) => ({
+        ...item,
+        patient_name: state.profiles.find((profile) => profile.id === item.patient_id)?.full_name ?? 'Patient',
+        patient_username: state.profiles.find((profile) => profile.id === item.patient_id)?.username ?? '',
+        doctor_name: state.profiles.find((profile) => profile.id === item.doctor_id)?.full_name ?? 'Doctor',
+        doctor_username: state.profiles.find((profile) => profile.id === item.doctor_id)?.username ?? '',
+        specialization: state.doctorProfiles.find((profile) => profile.id === item.doctor_id)?.specialization ?? 'Healthcare',
+      })));
+      setDoctors(state.doctorProfiles.filter((doctor) => doctor.verification_status === 'verified').map((doctor) => ({
+        ...doctor, bio: doctor.bio ?? null,
+        profiles: {
+          full_name: state.profiles.find((profile) => profile.id === doctor.id)?.full_name ?? 'Doctor',
+          username: state.profiles.find((profile) => profile.id === doctor.id)?.username ?? '',
+          location: state.profiles.find((profile) => profile.id === doctor.id)?.location ?? null,
+        },
+      })));
+      setSlots(state.doctorAvailability.filter((slot) => slot.status === 'available'
+        && new Date(slot.starts_at).getTime() > Date.now()
+        && (currentUser.role === 'patient' || slot.doctor_id === currentUser.id)));
+      setDoctorVerified(currentDoctorProfile?.verification_status === 'verified');
+      setLoadedAt(Date.now()); setLoading(false); setError('');
+      return;
+    }
     try {
       const response = await fetch('/api/appointments', { cache: 'no-store' });
       const data = await response.json();
@@ -41,7 +68,7 @@ export function AppointmentManager({ initialDoctorId }: { initialDoctorId?: stri
       setLoadedAt(Date.now());
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to load appointments.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [currentDoctorProfile?.verification_status, currentUser, isDemoMode, state]);
   useEffect(() => { void Promise.resolve().then(reload); }, [reload]);
 
   const selectedSlots = slots.filter((slot) => slot.doctor_id === doctorId);
@@ -52,6 +79,17 @@ export function AppointmentManager({ initialDoctorId }: { initialDoctorId?: stri
 
   const mutate = async (body: Record<string, string>): Promise<boolean> => {
     setBusy(true); setError('');
+    if (isDemoMode) {
+      let result: { success: boolean; error?: string };
+      if (body.action === 'book') result = bookDemoAppointment(body.slotId, body.type as 'in_person' | 'online', body.reason);
+      else if (body.action === 'status') result = updateDemoAppointment(body.appointmentId, body.status as AppointmentStatus);
+      else if (body.action === 'add_slot') result = addDemoAvailability(body.startsAt);
+      else result = removeDemoAvailability(body.slotId);
+      if (!result.success) setError(result.error || 'Could not update the appointment.');
+      await reload();
+      setBusy(false);
+      return result.success;
+    }
     try {
       const response = await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await response.json();
@@ -129,6 +167,7 @@ export function AppointmentManager({ initialDoctorId }: { initialDoctorId?: stri
       </aside>}
       {doctorId && selectedSlots.length === 0 && <p className="mt-3 text-sm text-slate-500">No open times for this doctor yet.</p>}
       {!loading && doctors.length > 0 && availableDoctors.length === 0 && <p className="mt-3 text-sm text-slate-500">No verified doctors have published appointment times yet.</p>}
+      {isDemoMode && availableDoctors.length === 0 && <p className="mt-2 text-sm text-sky-800">Demo walkthrough: switch to the verified doctor view, add a time, then return here to request it.</p>}
     </div> : <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
       <h2 className="text-lg font-semibold text-slate-900">Manage availability</h2><p className="mt-1 text-sm text-slate-600">Each slot is 30 minutes. Times are shown in your local timezone.</p>
       {!doctorVerified && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Appointment availability is available after your account is verified.</p>}
@@ -139,7 +178,7 @@ export function AppointmentManager({ initialDoctorId }: { initialDoctorId?: stri
       {slots.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{slots.map((slot) => <span key={slot.id} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm"><Clock3 size={14}/>{prettyDate(slot.starts_at)}<button aria-label="Remove slot" disabled={busy} onClick={() => void mutate({ action: 'remove_slot', slotId: slot.id })} className="rounded p-1 text-slate-500 hover:bg-slate-100"><X size={14}/></button></span>)}</div>}
     </div>}
     <section className="rounded-xl border border-slate-200 bg-white px-4 sm:px-6"><div className="border-b border-slate-200 py-4"><h2 className="font-semibold text-slate-900">{isPatient ? 'Upcoming appointments' : 'Requests and upcoming'}</h2></div>
-      {loading ? <p className="flex items-center gap-2 py-6 text-sm text-slate-500"><LoaderCircle size={16} className="animate-spin"/>Loading appointments…</p> : upcoming.length ? upcoming.map(appointmentRow) : <p className="py-6 text-sm text-slate-500">{isPatient ? 'No upcoming appointments. Choose a doctor and an available time to get started.' : 'No appointment requests or upcoming visits.'}</p>}
+      {loading ? <p className="flex items-center gap-2 py-6 text-sm text-slate-500"><LoaderCircle size={16} className="animate-spin"/>Loading appointments…</p> : upcoming.length ? upcoming.map(appointmentRow) : <div className="py-6 text-sm text-slate-500"><p>{isPatient ? 'No upcoming appointments. Choose a doctor and an available time to get started.' : 'No appointment requests or upcoming visits.'}</p>{isDemoMode && !isPatient && <p className="mt-2 text-sky-800">Try the demo flow: publish a time, switch to patient view to request it, then return here to accept or reject.</p>}</div>}
     </section>
     <section className="rounded-xl border border-slate-200 bg-white px-4 sm:px-6"><div className="border-b border-slate-200 py-4"><h2 className="font-semibold text-slate-900">Appointment history</h2></div>
       {!loading && history.length ? history.map(appointmentRow) : <p className="py-6 text-sm text-slate-500">Past and closed appointments will appear here.</p>}

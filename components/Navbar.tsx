@@ -27,7 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenAiAssistant,
 }) => {
-  const { currentUser, currentDoctorProfile, logout } = useHosaiStore();
+  const { currentUser, currentDoctorProfile, logout, switchDemoRole, isDemoMode } = useHosaiStore();
   if (!currentUser) return null;
 
   const links = currentUser.role === 'patient'
@@ -66,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const signOut = async (event: React.MouseEvent<HTMLButtonElement>) => {
     closeMenu(event);
-    if (isSupabaseConfigured && supabase) {
+    if (!isDemoMode && isSupabaseConfigured && supabase) {
       await supabase.auth.signOut();
       clearAuthenticatedProfile();
     } else logout();
@@ -112,6 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="text-lg font-bold tracking-tight text-slate-950">
             HOS<span className="text-sky-700">AI</span>
           </span>
+          {isDemoMode && <span className="hidden rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900 sm:inline">Demo · saved in this browser</span>}
         </button>
 
         <div className="hidden min-w-0 flex-1 lg:block">{navigation}</div>
@@ -158,6 +159,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   My Medical Profile
                 </button>
               )}
+              {isDemoMode && <div className="mt-1 border-t border-slate-100 pt-2">
+                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Switch demo view</p>
+                {(['patient', 'doctor', 'admin'] as const).map((role) => <button key={role} type="button" onClick={(event) => { switchDemoRole(role); closeMenu(event); }} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm capitalize text-slate-700 hover:bg-slate-50">{role}{currentUser.role === role ? ' · current' : ''}</button>)}
+              </div>}
               <button
                 type="button"
                 onClick={signOut}

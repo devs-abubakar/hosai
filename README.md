@@ -8,10 +8,10 @@ HOSAI is a healthcare management application for organizing patient records and 
 - Patient medical profile, records, and doctor discovery.
 - Doctor patient search and clinical workflow UI.
 - Appointment requests, doctor responses, appointment history, and 30-minute availability slots (Supabase-backed after setup below).
-- Patient-aware Gemini assistant endpoint and chat UI (requires Gemini configuration and Supabase-backed patient data).
+- Gemini assistant endpoint and chat UI (uses authenticated Supabase records or sample records in no-sign-in demo mode; requires a server-side Gemini key).
 - Doctor verification and hospital management UI.
 
-The existing dashboards still include local demo workflows. Those workflows are not a production authentication or data store.
+Visitors can enter demo mode without signing in and switch between patient, doctor, and administrator views. Demo appointments remain in that browser, and the assistant can use bundled sample records when `GEMINI_API_KEY` is configured. Demo workflows are not a production authentication or data store.
 
 ## Roles
 
@@ -74,7 +74,7 @@ There is no automated test script currently defined.
 
 ## Security and limitations
 
-- Supabase-backed appointment and AI routes require configured Supabase Auth and applied migrations. Without those, the local demo mode remains available but cannot use these secure server features.
+- Real patient appointments and AI context require Supabase Auth and applied migrations. No-sign-in demo mode uses local browser data and sample medical context only; never use demo mode for real patient information.
 - The AI assistant reads only the authenticated patient's RLS-protected records and sends bounded text context to Gemini. It does not read uploaded file contents, images, or scans. It is informational, not diagnostic or prescriptive; emergency advice is limited to directing users to local emergency services.
 - Doctor recommendations use verified database doctors with actual open slots. Appointment booking always requires a patient action.
 - Existing non-appointment dashboard workflows still use local demo state and must not be treated as production authentication or persistence.

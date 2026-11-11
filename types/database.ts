@@ -173,3 +173,25 @@ export interface PrescriptionItem {
   duration: string;
   instructions?: string;
 }
+
+export type AppointmentStatus = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+export interface Appointment {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  slot_id: string;
+  starts_at: string;
+  ends_at: string;
+  appointment_type: 'in_person' | 'online';
+  reason: string | null;
+  status: AppointmentStatus;
+  created_at: string;
+  updated_at: string;
+}
+export interface DoctorAvailabilitySlot {
+  id: string;
+  doctor_id: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'available' | 'booked' | 'unavailable';
+}

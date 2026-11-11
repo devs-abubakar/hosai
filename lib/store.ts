@@ -16,6 +16,9 @@ import {
   Prescription,
   PrescriptionItem,
   UserRole,
+  Appointment,
+  AppointmentStatus,
+  DoctorAvailabilitySlot,
 } from '@/types/database';
 
 export interface HosaiState {
@@ -32,6 +35,8 @@ export interface HosaiState {
   medicalRecords: MedicalRecord[];
   consultations: Consultation[];
   prescriptions: Prescription[];
+  appointments: Appointment[];
+  doctorAvailability: DoctorAvailabilitySlot[];
 }
 
 export const DEMO_PASSWORD = 'Password123!';
@@ -503,6 +508,8 @@ function getStoredState(): HosaiState {
       medicalRecords: INITIAL_RECORDS,
       consultations: INITIAL_CONSULTATIONS,
       prescriptions: INITIAL_PRESCRIPTIONS,
+      appointments: [],
+      doctorAvailability: [],
     };
   }
 
@@ -512,7 +519,7 @@ function getStoredState(): HosaiState {
       const parsed = JSON.parse(raw);
       // Ensure schema conformity
       if (parsed.profiles && parsed.profiles[0]?.username) {
-        return parsed;
+        return { ...parsed, appointments: parsed.appointments ?? [], doctorAvailability: parsed.doctorAvailability ?? [] };
       }
     }
   } catch (e) {
@@ -533,6 +540,8 @@ function getStoredState(): HosaiState {
     medicalRecords: INITIAL_RECORDS,
     consultations: INITIAL_CONSULTATIONS,
     prescriptions: INITIAL_PRESCRIPTIONS,
+    appointments: [],
+    doctorAvailability: [],
   };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
@@ -605,6 +614,7 @@ export function useHosaiStore() {
   const currentUser = state.authenticatedUserId
     ? state.profiles.find((p) => p.id === state.authenticatedUserId) || null
     : null;
+  const isDemoMode = !currentUser || remoteSessionUserId !== currentUser.id;
 
   const currentPatientProfile = currentUser
     ? state.patientProfiles.find((p) => p.id === currentUser.id)
@@ -657,6 +667,85 @@ export function useHosaiStore() {
     if (!globalState) return;
     globalState.authenticatedUserId = null;
     notify();
+  };
+
+  const switchDemoRole = (role: UserRole) => {
+    if (!globalState) globalState = getStoredState();
+    const demoUser = INITIAL_PROFILES.find((profile) => profile.role === role);
+    if (!demoUser) return;
+    globalState.authenticatedUserId = demoUser.id;
+    notify();
+  };
+
+  const addDemoAvailability = (startsAt: string): { success: boolean; error?: string } => {
+    if (!globalState) return { success: false, error: 'Demo data is loading.' };
+    const doctorId = globalState.authenticatedUserId;
+    const doctor = globalState.doctorProfiles.find((profile) => profile.id === doctorId && profile.verification_status === 'verified');
+    const starts = new Date(startsAt);
+    if (!doctor) return { success: false, error: 'Only verified demo doctors can publish availability.' };
+    if (!Number.isFinite(starts.getTime()) || starts.getTime() <= Date.now() + 30 * 60_000 || starts.getTime() > Date.now() + 90 * 86_400_000 || starts.getTime() % 1_800_000 !== 0) {
+      return { success: false, error: 'Choose a future 30-minute time within 90 days.' };
+    }
+    if (globalState.doctorAvailability.some((slot) => slot.doctor_id === doctorId && slot.starts_at === starts.toISOString())) {
+      return { success: false, error: 'You already published that time.' };
+    }
+    globalState.doctorAvailability = [...globalState.doctorAvailability, {
+      id: `demo-slot-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      doctor_id: doctorId!, starts_at: starts.toISOString(), ends_at: new Date(starts.getTime() + 30 * 60_000).toISOString(), status: 'available',
+    }];
+    notify();
+    return { success: true };
+  };
+
+  const removeDemoAvailability = (slotId: string): { success: boolean; error?: string } => {
+    if (!globalState) return { success: false, error: 'Demo data is loading.' };
+    const slot = globalState.doctorAvailability.find((item) => item.id === slotId && item.doctor_id === globalState?.authenticatedUserId && item.status === 'available' && new Date(item.starts_at).getTime() > Date.now());
+    if (!slot) return { success: false, error: 'That time is unavailable or already booked.' };
+    globalState.doctorAvailability = globalState.doctorAvailability.filter((item) => item.id !== slotId);
+    notify();
+    return { success: true };
+  };
+
+  const bookDemoAppointment = (slotId: string, appointmentType: 'in_person' | 'online', reason: string): { success: boolean; error?: string } => {
+    if (!globalState) return { success: false, error: 'Demo data is loading.' };
+    const patientId = globalState.authenticatedUserId;
+    if (!globalState.profiles.some((profile) => profile.id === patientId && profile.role === 'patient')) return { success: false, error: 'Switch to the patient demo role to request a visit.' };
+    if (reason.length > 1000) return { success: false, error: 'Keep the reason under 1,000 characters.' };
+    const slot = globalState.doctorAvailability.find((item) => item.id === slotId && item.status === 'available' && new Date(item.starts_at).getTime() > Date.now());
+    const doctor = slot && globalState.doctorProfiles.find((item) => item.id === slot.doctor_id && item.verification_status === 'verified');
+    if (!slot || !doctor || globalState.appointments.some((item) => item.slot_id === slotId && ['pending', 'confirmed'].includes(item.status))) {
+      return { success: false, error: 'That time is no longer available.' };
+    }
+    const now = new Date().toISOString();
+    globalState.appointments = [{
+      id: `demo-appointment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      patient_id: patientId!, doctor_id: slot.doctor_id, slot_id: slot.id, starts_at: slot.starts_at, ends_at: slot.ends_at,
+      appointment_type: appointmentType, reason: reason.trim() || null, status: 'pending', created_at: now, updated_at: now,
+    }, ...globalState.appointments];
+    globalState.doctorAvailability = globalState.doctorAvailability.map((item) => item.id === slot.id ? { ...item, status: 'booked' } : item);
+    notify();
+    return { success: true };
+  };
+
+  const updateDemoAppointment = (appointmentId: string, nextStatus: AppointmentStatus): { success: boolean; error?: string } => {
+    if (!globalState) return { success: false, error: 'Demo data is loading.' };
+    const user = globalState.profiles.find((profile) => profile.id === globalState?.authenticatedUserId);
+    const appointment = globalState.appointments.find((item) => item.id === appointmentId);
+    if (!user || !appointment) return { success: false, error: 'Appointment not found.' };
+    const allowed = user.role === 'patient'
+      ? user.id === appointment.patient_id && nextStatus === 'cancelled' && ['pending', 'confirmed'].includes(appointment.status)
+      : user.role === 'doctor' && user.id === appointment.doctor_id && globalState.doctorProfiles.some((doctor) => doctor.id === user.id && doctor.verification_status === 'verified')
+        && ((appointment.status === 'pending' && ['confirmed', 'rejected'].includes(nextStatus)) || (appointment.status === 'confirmed' && ['completed', 'cancelled'].includes(nextStatus)));
+    if (!allowed) return { success: false, error: 'That status change is not allowed.' };
+    const now = new Date().toISOString();
+    globalState.appointments = globalState.appointments.map((item) => item.id === appointmentId ? { ...item, status: nextStatus, updated_at: now } : item);
+    if (['rejected', 'cancelled'].includes(nextStatus)) {
+      globalState.doctorAvailability = globalState.doctorAvailability.map((slot) => slot.id === appointment.slot_id
+        ? { ...slot, status: new Date(slot.starts_at).getTime() > Date.now() ? 'available' : 'unavailable' }
+        : slot);
+    }
+    notify();
+    return { success: true };
   };
 
   // Register New User (Patients and Doctors only, NO public admin creation)
@@ -1077,10 +1166,16 @@ export function useHosaiStore() {
   return {
     state,
     currentUser,
+    isDemoMode,
     currentPatientProfile,
     currentDoctorProfile,
     login,
     logout,
+    switchDemoRole,
+    addDemoAvailability,
+    removeDemoAvailability,
+    bookDemoAppointment,
+    updateDemoAppointment,
     registerUser,
     searchPatientByUsername,
     requestPatientAccess,

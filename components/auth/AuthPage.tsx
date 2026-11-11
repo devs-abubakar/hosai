@@ -20,7 +20,7 @@ import {
 import { toast } from 'sonner';
 
 export const AuthPage: React.FC = () => {
-  const { login, registerUser } = useHosaiStore();
+  const { login, registerUser, switchDemoRole } = useHosaiStore();
   const [activePortal, setActivePortal] = useState<UserRole>('patient');
   const [isRegistering, setIsRegistering] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -198,6 +198,11 @@ export const AuthPage: React.FC = () => {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-sm border border-slate-200 sm:rounded-2xl sm:px-10">
+          <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">Explore HOSAI demo</p>
+            <p className="mt-1 text-xs text-slate-600">No account needed. Demo changes stay in this browser.</p>
+            <button type="button" onClick={() => switchDemoRole('patient')} className="mt-3 min-h-11 w-full rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">Continue as patient</button>
+          </div>
           {/* Portal Selector Tabs */}
           {!isRegistering && (
             <div className="flex rounded-xl bg-slate-100 p-1 mb-6 border border-slate-200">
